@@ -1,157 +1,65 @@
-# gbdt-forecast
+# EnerFlow
 
 ## Introduction
-This code, `gbdt-forecast`, is a method for energy and weather forecasting using gradient boosting decision trees. It considers the forecasting problem as a tabular problem without the  spatio-temporal aspects included in the modelling prior. Instead spatio-temporal features can be included as (lagged) features in the tabular data. The code integrates four most popular gradient boosting implementations:
+`enerflow`, is an open source library for energy and weather forecasting which makes use of gradient boosting decision trees. It considers the forecasting problem as a tabular problem without the  spatio-temporal aspects included in the modeling prior. Instead spatio-temporal features can be included as (lagged) features in the tabular data. The code integrates the following popular gradient boosting implementations:
 
-##### 1) [`lightgbm`](https://lightgbm.readthedocs.io/en/latest/) ([Link to LightGBM paper](https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree.pdf))
-##### 2) [`xgboost`](https://xgboost.readthedocs.io/en/latest/) ([Link to XGBoost paper](https://arxiv.org/pdf/1603.02754.pdf))
-##### 3) [`catboost`](https://catboost.ai/) ([Link to CatBoost paper](https://arxiv.org/pdf/1706.09516.pdf))
-##### 4) [`scikit-learn`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.GradientBoostingRegressor.html#sklearn.ensemble.GradientBoostingRegressor)
+##### 1) `lightgbm` ([Documentation](https://lightgbm.readthedocs.io/en/latest/), [Paper](https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree.pdf))
+##### 2) `xgboost` ([Documentation](https://xgboost.readthedocs.io/en/stable/), [Paper](https://arxiv.org/pdf/1603.02754.pdf))
+##### 3) `catboost` ([Documentation](https://catboost.ai/en/docs/), [Paper](https://arxiv.org/pdf/1706.09516.pdf))
 
-## Performance benchmark on GEFCom2014 competition dataset
 
-### Wind power forecasting
-![alt text](./plots/gefcom2014-wind-teams.png "wind-forecasting-teams")
-![alt text](./plots/gefcom2014-wind-tasks.png "wind-forecasting-tasks")
-
-### Solar power forecasting
-The solar power forecasting benchmark is performed using the parameters in `params/params_gefcom2014_solar_competition.json`.
-
-![alt text](./plots/gefcom2014-solar-teams.png "solar-forecasting-teams")
-![alt text](./plots/gefcom2014-solar-tasks.png "solar-forecasting-tasks")
-
-## Data sensitivity analysis on GEFCom2014 competition dataset
 
 ## Installation
-Clone and install the necessary libaries through conda.
+
+Clone and install the necessary libraries using:
 
 ```
-git clone git@github.com:greenlytics/gbdt-forecast.git
-conda env create -f environment.yml
-conda activate gbdt-forecast
+git clone git@github.com:enerflow/enerflow.git
+pip install -r requirements.txt
 ```
 
-## Quick start
-Download the [GEFCom2014 data](https://drive.google.com/file/d/1gKSe-OMVICQ5ZcBD_jvtAPRuamTFwFqI/view?usp=sharing) and place the file `1-s2.0-S0169207016000133-mmc1.zip` in the `data` folder.
 
-To replicate the results above run the following scripts:
 
-```
-./run_gefcom2014_load.sh
-./run_gefcom2014_solar.sh
-./run_gefcom2014_wind.sh
-```
+## How to use
 
-The results will be saved to the `results` folder and plots will be saved to `plots` folder.
+Find use case examples in [examples](https://github.com/enerflow/enerflow/examples) folder
 
-## Walkthrough of the pipeline
 
-### 1) Download data
-Download the [GEFCom2014 data](https://drive.google.com/file/d/1rLEGySZZYTt-2JFWziX3IwfAdC4iQCV6/view?usp=sharing) and place the file `1-s2.0-S0169207016000133-mmc1.zip`in the `data` folder. 
 
-### 2) Extract data
-Extract the data by running:
+## Forecasting parameters
 
-```
-python preprocess/extract_gefcom2014_wind_solar_load.py
-```
+A description of the tool parameter inputs is provided below:
 
-the raw data files will be saved to:
+- `trial_name`: The name of the trial. It will be used as file name to store the results.
+- `trial_comment`: User comment about the trial setup.
+- `path_result`: Path to where the result will be stored.
+- `path_preprocessed_data`: Folder path to the preprocessed input data.
+- `filename_preprocessed_data`: File name of the preprocessed input data.
+- `datetime_splits`: A dictionary whose keys can be `train`, `valid`, `test`. Each value is a list of lists of datetime splits (start and end time) of the form `[[start_time_1, end_time_1], [start_time_2, end_time_2], ...]`. Strings `start_time` and `end_time` should have the format `YYYY-mm-dd HH:MM:SS` and is assumed to be UTC. 
+- `sites`: List of name of the sites to train on. Sites names corresponding to names of columns in preprocessed data.
+- `features`: List of features to use for model prediction. Feature names corresponding to names of columns in preprocessed data.
+- `feature_lags`: Dictionary of feature-lags pairs `[{feature_1: lags_1}, {feature_2: lags_2}, ...]` where `feature` is a feature from the `features` list and `lags` is a list of lags (non-zero, positive or negative integers) to include as additional `features` in the model.  
+- `categorical_features`: List of features to be handled as categorical.
+- `target`: String with name of the target variable to forecast. Target name corresponding to name of column in preprocessed data.
+- `diff_target_with_physical`: Boolean (`false` or `true`) if to use physical model as base model and learn the residuals with gradient boosting decision tree model.
+- `target_smoothing_window`: Default 1. Window to smooth the target variable before training. Smoothing is done with a centered boxcar window. Should be an odd number for window to be centered.
+- `regression_params`:
+  - `type`: Type of regression. Either `mean` or `quantile`.
+  - `alpha_range`: Range of quantiles on the form `[start, stop, step]` creates a list of quantiles through `numpy.arange(start, stop, step)`.
+  - `y_min_max`: List with min and max values [`y_min`, `y_max`] to clip model predictions. If `Clearsky_Forecast` is in `features` then it can be used as upper limit by setting `y_max="clearsky"`. Set to `[null, null]` to disable clipping of predictions.
+- `model_params`: Gradient boosting algorithm parameters. See algorithms' documentations.
+- `weight_params`: Allows to weight recent samples in training data more compared to outdated samples. Applies an exponential decay on the form `weight = (1-weight_end)*numpy.exp(-days/weight_shape)+weight_end`, where `days` are number of days from the most recent sample.
+  - `weight_end`: Weight of the most outdated sample. Should be a number in the range [0,1]. Set to 1 to disable sample weighting.
+  - `weight_shape`: Shape of the exponential weighting function.
+- `save_options`: Dictionary with keys according to below.
+  - `data`: Boolean if to save data to result.
+  - `prediction`: Boolean if to save predictions to result.
+  - `model`: Boolean if to save models to result.
+  - `evals`: Boolean if to save evaluations to result.
+  - `loss`: Boolean if to save loss to result.
+  - `overall_score`: Boolean if to save overall score to result.
 
-```
-Wind track data saved to: ./data/raw/gefcom2014-wind-raw.csv
-Solar track data saved to: ./data/raw/gefcom2014-solar-raw.csv
-Load track data saved to: ./data/raw/gefcom2014-load-raw.csv
-```
 
-### 3) Preprocessing the GEFCom2014 data
-Next step is to preprocess the data with feature extraction relavent for the forecasting task at hand. This repo includes examples of feature extraction for the different GEFCom2014 tracks:
 
-```
-preprocess/preprocess_gefcom2014_wind_example.py
-preprocess/preprocess_gefcom2014_solar_example.py
-preprocess/preprocess_gefcom2014_load_example.py
-```
+## Acknowledgement
 
-These preprocessing scripts should be updated with the relevant feature engineering and takes input from the parameter files. To run the preprocessing script for the wind track (other tracks are analog) as:
-
-```
-python preprocess/preprocess_gefcom2014_wind_example.py params/params_competition_gefcom2014_wind_example.json
-```
-
-the processed data file will be saved to:
-
-```
-Wind track preprocessed data saved to: ./data/gefcom2014/preprocessed/gefcom2014-wind-preprocessed.csv
-```
-
-### 4) Train models and predict
-To train models, predict and save the results run the following script:
-
-```
-python ./main.py params/params_competition_gefcom2014_wind_example.json
-```
-
-The results will be saved to the `results` folder. Train models for other tracks by changing the parameters file.
-
-### 5) Generate plots
-Lastly, generate plots by running the following:
-
-```
-python ./plots/generate_plots_wind.py
-```
-
-Plots will be saved to the `plots` folder.
-
-## Different pipeline
-Right now the train is both the create model and the fit step. This means it is not possible to partially train a model. Should this be supported in the future? 
-
-### Methods in `Trial`
-The methods in the `Trial` class is given 
-Should it be renamed to `MQForecast` instead? 
-
-* `load_data`
-* `generate_dataset`
-* `generate_dataset_split_site`
-* `create_model`
-* `fit_model`
-* `train_mq`
-* `predict_mq`
-* `predict_mq_model_split_site`
-* `calculate_loss`
-* `calculate_loss_split_site`
-
-### `run_pipeline`
-This is used for training models for several splits and sites. 
-
-1) `generate_dataset_split_site`
-2) `train_model_split_site`
-3) `predict_model_split_site`
-4) `calculate_loss_split_site`
-
-### `run_pipeline_parallel`
-This is used for training models for several splits and sites in parallel. 
-
-1) `generate_dataset`
-2) `train_q`
-3) `predict_q`
-4) `calculate_loss`
-
-### `run_pipeline_cross_validation`
-This is used for training models for several cross validations splits and sites. Need to thing about this one if it is possible since we need to overwrite the predict function somehow. 
-Should be possible: https://stackoverflow.com/questions/52679784/post-process-cross-validated-prediction-before-scoring
-
-1) `generate_dataset_cv`
-2) `train_q`
-3) `predict_q`
-4) `calculate_loss`
-
-### `run_pipeline_predict`
-This is used for making operational predictions. 
-
-1) `generate_dataset`
-2) `load_model_q`
-3) `predict_q`
-
-## Aknowledgement
-The authors of this code would like to thank the Swedish Energy Agency for their financial support for this research work under the grant VindEL project number: 47070-1.
